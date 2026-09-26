@@ -877,9 +877,68 @@ def art_never(ctx, lt, p):
     sparks(ctx, 640, 470, lt, n=50, spread=140, rise=320, seed=3)
 
 
-def art_rocket_flash(ctx, lt, p):
-    a = (0.4 + 0.6 * eo(seg(lt, 0, 0.15))) * (1 - seg(lt, 1.0, 1.4)) * (0.85 + 0.15 * math.sin(lt * 60))
-    rocket_outline(ctx, 640, 610, 1.25, a)
+def bird_track(ctx, x, y, ang, s, a):
+    """A three-toed bird footprint pointing along `ang` (degrees)."""
+    for da, ln in ((-38, 15), (0, 18), (38, 15), (180, 7)):
+        r = math.radians(ang + da)
+        pts = [(x, y), (x + ln * s * math.cos(r), y + ln * s * math.sin(r))]
+        ctx.line(pts, "gold", 0.45 * a, 5 * s, blur=3 * s, add=True)
+        ctx.line(pts, (255, 236, 190), a, 2.0 * s)
+
+
+def beast_track(ctx, x, y, ang, s, a):
+    """A four-toed paw print pointing along `ang` (degrees)."""
+    r = math.radians(ang)
+    fx, fy = math.cos(r), math.sin(r)
+    px, py = -fy, fx
+    ctx.c.save()
+    ctx.c.translate(x, y)
+    ctx.c.rotate(ang + 90)
+    ctx.ellipse(0, 0, 8 * s, 7 * s, fill="gold", fa=0.35 * a, stroke=(255, 236, 190), a=a, w=1.6, blur=0)
+    ctx.c.restore()
+    for k, off in enumerate((-1.5, -0.5, 0.5, 1.5)):
+        tx = x + fx * (12 - 2.5 * abs(off)) * s + px * off * 6 * s
+        ty = y + fy * (12 - 2.5 * abs(off)) * s + py * off * 6 * s
+        ctx.circle(tx, ty, 2.8 * s, fill="gold", fa=0.35 * a, stroke=(255, 236, 190), a=a, w=1.3)
+
+
+def art_tracks(ctx, lt, p):
+    """Cangjie reads the tracks of birds and beasts (Xu Shen, preface to the Shuowen Jiezi)."""
+    art_ring(ctx, lt, p, R=320, a=0.12)
+    trails = [  # (start, end, kind, count, seed)
+        ((150, 600), (1130, 330), "bird", 14, 1),
+        ((1160, 640), (220, 300), "beast", 11, 2),
+    ]
+    for (x0, y0), (x1, y1), kind, n, sd in trails:
+        ang = math.degrees(math.atan2(y1 - y0, x1 - x0))
+        nx, ny = -(y1 - y0), (x1 - x0)
+        L = math.hypot(nx, ny)
+        nx, ny = nx / L, ny / L
+        for i in range(n):
+            u = i / (n - 1)
+            side = 1 if i % 2 else -1
+            wob = 30 * math.sin(u * 5 + sd)
+            x = lerp(x0, x1, u) + nx * (side * 12 + wob)
+            y = lerp(y0, y1, u) + ny * (side * 12 + wob)
+            t0 = 0.1 + u * 1.3
+            a = eo(seg(lt, t0, t0 + 0.12))
+            if a <= 0:
+                continue
+            flash = 1 - seg(lt, t0, t0 + 0.5)
+            if flash > 0:
+                ctx.glow(x, y, 50, "gold", 0.5 * flash)
+            s = 1.8
+            if kind == "bird":
+                bird_track(ctx, x, y, ang + side * 8, s, a * (0.75 + 0.25 * flash))
+            else:
+                beast_track(ctx, x, y, ang + side * 6, s, a * (0.75 + 0.25 * flash))
+    a = eo(seg(lt, 1.1, 1.6))
+    ctx.text("見鳥獸蹏迒之跡", 640, 150, "cjk", 34, "gold", a, track=10, align="center")
+    ctx.text("見鳥獸蹏迒之跡", 640, 150, "cjk", 34, "gold", 0.5 * a, track=10, align="center", blur=10, add=True)
+    b = eo(seg(lt, 1.4, 1.9))
+    ctx.text("He saw the tracks of birds and beasts, and knew that marks could tell things apart.", 640, 192,
+             "italic", 22, "text", 0.9 * b, align="center")
+    ctx.text("XU SHEN · SHUOWEN JIEZI · AD 100", 640, 220, "mono", 9, "sub", 0.8 * b, track=3, align="center")
 
 
 def rocket_outline(ctx, x, base, s, a, col="ink"):
@@ -2787,11 +2846,11 @@ CH12 = "XII · 未来 WEILAI"
 SHOTS = [
     # cold open
     S(art_compass_open, 2.2, "dark", hud=False, focus=(640, 360), zoom=(1.08, 1.0)),
+    S(art_tracks, 2.5, "dark", hud=False, focus=(640, 400), zoom=(1.0, 1.06)),
     S(art_cangjie, 2.6, "dark", hud=False, head=[("CANGJIE", "gold", 92), ("INVENTED *WRITING.", "white", 40)],
       hx=640, hy=150, align="center", focus=(640, 400), stagger=0.3),
     S(art_never, 2.4, "dark", hud=False, head=[("WE NEVER PUT", "white", 50), ("DOWN THE *BRUSH.", "white", 50)],
       hx=640, hy=150, align="center", focus=(640, 400), stagger=0.22),
-    S(art_rocket_flash, 1.4, "dark", hud=False, focus=(640, 360), zoom=(1.0, 1.1)),
     # I
     S(art_yu, 2.2, ch=CH1, year=-2070, k=0.401, head=[("WE TAMED", "ink", 46), ("THE FLOOD.", "red", 66)],
       cap="YU THE GREAT · NINE RIVERS · c. 2070 BC", flash=0.5, icon=(900, 450, 260)),

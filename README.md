@@ -37,12 +37,12 @@ On the first run the script downloads the fonts Ma Shan Zheng (brush script) and
 
 A second, English-language video on the same subject. It follows the style of a "blueprint montage" reference video: about 50 fast shots of line-art illustrations. The dynasties are drawn on aged parchment, and the night, space and future chapters switch to a dark gold-glow palette. Headlines land one word at a time, and a HUD shows the chapter, the year, a timeline and a Kardashev meter. The story is told in the first person ("WE TAMED THE FLOOD.", "THEN WE BUILT THE WALL.", "THEN WE LEFT."). It is framed by one motif, the glowing character 文 ("writing", half of 文明, "civilization"): Cangjie invents writing, "we never put down the brush", and the ending returns to "the ink is still wet".
 
-- **Video:** `output/chinese_civilization_en.mp4`. It is 1280×720 at 30 fps and runs about 2:04. Every cut lands on the beat of a 120 BPM soundtrack.
+- **Video:** `output/chinese_civilization_en.mp4`. It is 1280×720 at 30 fps and runs about 2:05. Every cut lands on the beat of a 120 BPM soundtrack.
 - **Soundtrack:** synthesized, with no voice, in D pentatonic. It drives from the first frame: a sixteenth-note staccato string ostinato, an octave bass, four-on-the-floor kick with a snare backbeat and hi-hats, and taiko. A brass-like stab hits every cut, and each new chapter gets a snare fill and a crash. Layers pile on dynasty by dynasty (a dizi-like lead and guzheng from the Tang on). The night chapter turns half-time and heavy with an erhu-like line, and an accelerating snare roll runs into "5,000 YEARS."
 
 | # | Chapter | Shots |
 |---|---------|-------|
-| — | Cold open | Song compass, Cangjie invents writing, "we never put down the brush" |
+| — | Cold open | Song compass, the tracks of birds and beasts (Xu Shen's *Shuowen Jiezi*), Cangjie invents writing, "we never put down the brush" |
 | I | 夏商 Xia · Shang | Yu tames the flood, oracle bones, the Houmuwu ding |
 | II | 周 Zhou | Sun Tzu, Confucius's Analects, the Way |
 | III | 秦 Qin | One empire and one script, the Great Wall, the Terracotta Army |
