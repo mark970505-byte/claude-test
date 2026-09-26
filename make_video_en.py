@@ -3211,7 +3211,7 @@ def render():
     cmd = [imageio_ffmpeg.get_ffmpeg_exe(), "-y", "-loglevel", "error",
            "-f", "rawvideo", "-pix_fmt", "rgb24", "-s", f"{W}x{H}", "-r", str(FPS), "-i", "-",
            "-i", wav, "-map", "0:v", "-map", "1:a",
-           "-c:v", "libx264", "-preset", "medium", "-crf", "18", "-pix_fmt", "yuv420p",
+           "-c:v", "libx264", "-preset", "slow", "-crf", "26", "-pix_fmt", "yuv420p",
            "-c:a", "aac", "-b:a", "192k", "-shortest", "-movflags", "+faststart", out]
     proc = subprocess.Popen(cmd, stdin=subprocess.PIPE)
     print(f"rendering {nframes} frames ({TOTAL:.1f} s, {len(SHOTS)} shots) ...")
