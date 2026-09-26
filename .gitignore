@@ -1,0 +1,4 @@
+fonts/
+output/_*
+output/still_*.png
+__pycache__/
