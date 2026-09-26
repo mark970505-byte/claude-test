@@ -2,3 +2,4 @@ fonts/
 output/_*
 output/still_*.png
 __pycache__/
+output/*_1080p.mp4

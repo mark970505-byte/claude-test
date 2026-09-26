@@ -42,7 +42,12 @@ FONTS = {
     "brush": ("MaShanZheng.ttf", GF + "mashanzheng/v18/NaPecZTRCLxvwo41b4gvzkXaRMQ.ttf"),
 }
 
-W, H = 1280, 720
+W, H = 1280, 720          # the drawing space; every shot is laid out in these units
+SCALE = 1.0               # output scale: 1.0 renders 1280x720, 1.5 renders 1920x1080
+
+
+def out_size():
+    return int(round(W * SCALE)), int(round(H * SCALE))
 FPS = 30
 
 PAL = {
@@ -721,13 +726,14 @@ _G = {}
 def worker_state():
     if not _G:
         ensure_fonts()
-        _G["surface"] = skia.Surface(W, H)
+        ow, oh = out_size()
+        _G["surface"] = skia.Surface(ow, oh)
         _G["bg"] = {k: make_bg(k) for k in ("paper", "dark", "ember", "space")}
-        yy, xx = np.mgrid[0:H, 0:W].astype(np.float32)
-        r = np.sqrt(((xx - W / 2) / (W / 2)) ** 2 + ((yy - H / 2) / (H / 2)) ** 2)
+        yy, xx = np.mgrid[0:oh, 0:ow].astype(np.float32)
+        r = np.sqrt(((xx - ow / 2) / (ow / 2)) ** 2 + ((yy - oh / 2) / (oh / 2)) ** 2)
         _G["vig"] = (1 - 0.32 * np.clip(r - 0.35, 0, 1) ** 1.5)[..., None].astype(np.float32)
         rng = np.random.default_rng(4)
-        _G["grain"] = [(rng.random((H, W)).astype(np.float32) - 0.5)[..., None] for _ in range(6)]
+        _G["grain"] = [(rng.random((oh, ow)).astype(np.float32) - 0.5)[..., None] for _ in range(6)]
         _G["icons"] = {}
     return _G
 
@@ -735,10 +741,11 @@ def worker_state():
 def finish(rgb, dark, i, cut, flash):
     f = rgb.astype(np.float32) * (1 / 255)
     if dark:
+        ow, oh = out_size()
         small = Image.fromarray(rgb).resize((W // 4, H // 4), Image.BILINEAR).filter(ImageFilter.GaussianBlur(5))
-        bl = np.asarray(small.resize((W, H), Image.BILINEAR), np.float32) * (1 / 255)
+        bl = np.asarray(small.resize((ow, oh), Image.BILINEAR), np.float32) * (1 / 255)
         f += np.clip(bl - 0.28, 0, 1) * 0.85
-    s = 1 + int(round(cut * 5))
+    s = max(1, int(round((1 + cut * 5) * SCALE)))
     out = f.copy()
     out[:, s:, 0] = f[:, :-s, 0]
     out[:, :-s, 2] = f[:, s:, 2]
@@ -2720,18 +2727,21 @@ def get_icon(name):
     g = worker_state()
     if name not in g["icons"]:
         s = next(s for s in SHOTS if s["art"].__name__ == name)
-        surf = skia.Surface(W, H)
+        ow, oh = out_size()
+        surf = skia.Surface(ow, oh)
         cv = surf.getCanvas()
         cv.clear(skia.ColorSetARGB(255, 14, 16, 24))
+        cv.scale(SCALE, SCALE)
         s["art"](Ctx(cv, "dark", s["dur"] - 0.05, s["dur"], s), s["dur"] - 0.05, 1.0)
         arr = surf.makeImageSnapshot().toarray(colorType=skia.kRGBA_8888_ColorType)
-        cx, cy, r = s["icon"]
-        big = np.zeros((H + 2 * r, W + 2 * r, 4), np.uint8)
+        cx, cy, r = (int(round(v * SCALE)) for v in s["icon"])
+        big = np.zeros((oh + 2 * r, ow + 2 * r, 4), np.uint8)
         big[..., :3] = (14, 16, 24)
         big[..., 3] = 255
-        big[r:r + H, r:r + W] = arr
+        big[r:r + oh, r:r + ow] = arr
         crop = big[cy:cy + 2 * r, cx:cx + 2 * r]
-        im = Image.fromarray(crop).resize((256, 256), Image.LANCZOS)
+        side = int(round(256 * SCALE))
+        im = Image.fromarray(crop).resize((side, side), Image.LANCZOS)
         g["icons"][name] = skia.Image.fromarray(np.ascontiguousarray(np.asarray(im)))
     return g["icons"][name]
 
@@ -3012,12 +3022,15 @@ def render_frame(i):
     prev = SHOTS[idx - 1] if idx else None
     canvas = g["surface"].getCanvas()
     canvas.clear(skia.ColorBLACK)
-    canvas.drawImage(g["bg"][s["bg"]], 0, 0)
+    canvas.save()
+    canvas.scale(SCALE, SCALE)
+    canvas.drawImageRect(g["bg"][s["bg"]], skia.Rect.MakeWH(W, H), skia.SamplingOptions(skia.FilterMode.kLinear))
     draw_shot(canvas, s, lt, prev)
     fade = s.get("fade_out")
     if fade and lt > s["dur"] - fade:
         a = seg(lt, s["dur"] - fade, s["dur"])
         canvas.drawRect(skia.Rect.MakeWH(W, H), skia.Paint(Color=skia.ColorSetARGB(int(255 * a), 0, 0, 0)))
+    canvas.restore()
     rgb = g["surface"].makeImageSnapshot().toarray(colorType=skia.kRGBA_8888_ColorType)[..., :3]
     cut = max(0.0, 1 - lt / 0.12) if idx else 0.0
     flash = s["flash"] * max(0.0, 1 - lt / 0.2)
@@ -3383,12 +3396,13 @@ def render():
     ensure_fonts()
     os.makedirs(OUT_DIR, exist_ok=True)
     wav = os.path.join(OUT_DIR, "_soundtrack.wav")
-    out = os.path.join(OUT_DIR, OUT_NAME + ".mp4")
+    ow, oh = out_size()
+    out = os.path.join(OUT_DIR, OUT_NAME + ("" if SCALE == 1 else f"_{oh}p") + ".mp4")
     print("composing soundtrack ...")
     write_wav(wav, compose(TOTAL))
     nframes = int(round(TOTAL * FPS))
     cmd = [imageio_ffmpeg.get_ffmpeg_exe(), "-y", "-loglevel", "error",
-           "-f", "rawvideo", "-pix_fmt", "rgb24", "-s", f"{W}x{H}", "-r", str(FPS), "-i", "-",
+           "-f", "rawvideo", "-pix_fmt", "rgb24", "-s", f"{ow}x{oh}", "-r", str(FPS), "-i", "-",
            "-i", wav, "-map", "0:v", "-map", "1:a",
            "-c:v", "libx264", "-preset", "slow", "-crf", "26", "-pix_fmt", "yuv420p",
            "-c:a", "aac", "-b:a", "192k", "-shortest", "-movflags", "+faststart", out]
@@ -3417,15 +3431,18 @@ def stills(at=0.85):
     for k in range(0, len(imgs), per):
         sheet = Image.new("RGB", (640 * 3, 360 * 4))
         for j, b in enumerate(imgs[k:k + per]):
-            im = Image.frombytes("RGB", (W, H), b).resize((640, 360), Image.LANCZOS)
+            im = Image.frombytes("RGB", out_size(), b).resize((640, 360), Image.LANCZOS)
             sheet.paste(im, ((j % 3) * 640, (j // 3) * 360))
         sheet.save(os.path.join(OUT_DIR, f"_sheet_{k // per:02d}.png"))
     for n in sys.argv[2:]:
-        Image.frombytes("RGB", (W, H), imgs[int(n)]).save(os.path.join(OUT_DIR, f"_still_{int(n):02d}.png"))
+        Image.frombytes("RGB", out_size(), imgs[int(n)]).save(os.path.join(OUT_DIR, f"_still_{int(n):02d}.png"))
     print(f"{len(SHOTS)} shots, {TOTAL:.1f} s")
 
 
 if __name__ == "__main__":
+    if "--1080p" in sys.argv:
+        SCALE = 1.5
+        sys.argv.remove("--1080p")
     if len(sys.argv) > 1 and sys.argv[1] == "--stills":
         stills()
     else:

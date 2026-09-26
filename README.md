@@ -60,6 +60,9 @@ A second, English-language video on the same subject. It follows the style of a 
 pip install skia-python numpy pillow imageio-ffmpeg
 python3 make_video_en.py             # full render, a few minutes on 4 cores
 python3 make_video_en.py --stills    # contact sheets of every shot in output/
+python3 make_video_en.py --1080p     # native 1920x1080 render -> output/chinese_civilization_en_1080p.mp4
 ```
+
+The 1080p file is a local copy and is ignored by git.
 
 skia needs `libegl1` on Linux (`apt-get install libegl1`). On the first run the script downloads Cinzel, EB Garamond, IBM Plex Mono, Noto Serif SC and Ma Shan Zheng from Google Fonts. All of these fonts use the SIL Open Font License.
