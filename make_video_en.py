@@ -2872,7 +2872,7 @@ SHOTS = [
 ]
 
 
-BEAT = 0.6  # 100 BPM: every cut lands on a beat
+BEAT = 0.5  # 120 BPM: every cut lands on a beat
 
 
 def schedule():
@@ -3030,6 +3030,37 @@ def riser(dur, amp=0.25):
     return amp * (0.5 * noise + 0.5 * sweep) * (t / dur) ** 2.2
 
 
+def kick(amp=0.9):
+    n = int(0.35 * SR)
+    t = np.arange(n) / SR
+    f = 42 + 110 * np.exp(-t * 35)
+    return amp * np.sin(2 * np.pi * np.cumsum(f) / SR) * np.exp(-t * 9)
+
+
+def snare(amp=0.5):
+    n = int(0.3 * SR)
+    t = np.arange(n) / SR
+    rng = np.random.default_rng(6)
+    noise = rng.standard_normal(n)
+    noise = noise - np.convolve(noise, np.ones(4) / 4, "same")
+    return amp * (0.6 * noise * np.exp(-t * 18) + 0.5 * np.sin(2 * np.pi * 190 * t) * np.exp(-t * 25))
+
+
+def crash(amp=0.3, dur=2.5):
+    n = int(dur * SR)
+    t = np.arange(n) / SR
+    rng = np.random.default_rng(7)
+    noise = rng.standard_normal(n)
+    noise = noise - np.convolve(noise, np.ones(3) / 3, "same")
+    return amp * noise * np.exp(-t * 2.2) * np.minimum(t / 0.002, 1)
+
+
+def stab(freqs, amp=0.12, dur=0.35):
+    """A short brass-like chord hit."""
+    out = sum(tone(f, dur, amp, harm=(1, .8, .6, .45, .3, .2, .12), a=0.01, d=0.18) for f in freqs)
+    return out / max(len(freqs), 1) * 2
+
+
 def compose(total):
     n = int((total + 3) * SR)
     L = np.zeros(n)
@@ -3037,7 +3068,7 @@ def compose(total):
 
     def put(sig, t, pan=0.0, gain=1.0):
         i = int(t * SR)
-        if i >= n:
+        if i >= n or t < 0:
             return
         sig = sig[: n - i] * gain
         L[i:i + len(sig)] += sig * math.sqrt(0.5 * (1 - pan))
@@ -3047,6 +3078,8 @@ def compose(total):
         return next(s["start"] for s in SHOTS if pred(s))
 
     t_act1 = start_of(lambda s: s["ch"] == CH1)
+    t_qin = start_of(lambda s: s["ch"] == CH3)
+    t_tang = start_of(lambda s: s["ch"] == CH5)
     t_night = start_of(lambda s: s["ch"] == CH8)
     t_reb = start_of(lambda s: s["ch"] == CH9)
     t_sky = start_of(lambda s: s["ch"] == CH10)
@@ -3054,140 +3087,200 @@ def compose(total):
     t_flip = start_of(lambda s: s["art"] is art_flip)
     t_5000 = start_of(lambda s: s["art"] is art_5000)
     t_end = start_of(lambda s: s["art"] is art_inkwet)
+    t_quote = start_of(lambda s: s["art"] is art_quote)
     t_final = start_of(lambda s: s["art"] is art_final)
     bar = 4 * BEAT
+    s16 = BEAT / 4
 
-    # cold open: drone, a lone guzheng phrase, a riser into the first cut
-    put(pad([hz(38), hz(45), hz(50), hz(57)], t_act1 + 0.5, 0.3, a=0.8), 0)
-    put(gong(0.35, 6.0), 0.0)
-    for i, d in enumerate([4, 3, 2, 3, 1, 0]):
-        put(pluck(hz(deg(MINOR, d, 0)), 3.0, 0.4), 0.6 + i * BEAT * 1.5, pan=0.2 * (i % 2 * 2 - 1))
-    put(riser(3.0, 0.2), t_act1 - 3.0)
-    put(taiko(1.0), t_act1)
-
-    motif_a = [(4, 1), (3, .5), (2, .5), (3, 1), (1, 1), (2, 1.5), (1, .5), (0, 2)]
-    motif_b = [(5, 1), (4, .5), (3, .5), (4, 1), (6, 1), (7, 1.5), (6, .5), (5, 2)]
     chords_min = [[50, 57, 62, 65], [46, 53, 58, 62], [48, 55, 60, 64], [45, 52, 57, 60]]
     chords_maj = [[50, 57, 62, 66], [47, 54, 59, 62], [43, 50, 55, 59], [45, 52, 57, 61]]
+    ost_pat = [0, 2, 3, 2, 4, 3, 2, 3, 0, 2, 3, 2, 5, 4, 3, 2]
+    motif_a = [(4, 1), (3, .5), (2, .5), (3, 1), (1, 1), (2, 1.5), (1, .5), (0, 2)]
+    motif_b = [(5, 1), (4, .5), (3, .5), (4, 1), (6, 1), (7, 1.5), (6, .5), (5, 2)]
 
+    # cold open: a pulsing ostinato that builds from the first frame
+    b = 0
+    t = 0.0
+    while t < t_act1 - 1e-6:
+        ch = chords_min[b % 4]
+        grow = t / t_act1
+        put(pad([hz(m) for m in ch[1:]], bar + 0.2, 0.10 + 0.06 * grow, a=0.2), t)
+        for k in range(16):
+            tt = t + k * s16
+            if tt >= t_act1:
+                break
+            m = deg(MINOR, ost_pat[k], -1)
+            put(tone(hz(m), s16 * 1.2, 0.07 + 0.08 * grow, harm=(1, .7, .5, .35, .2), a=0.003, d=0.07), tt,
+                pan=0.3 * (1 if k % 2 else -1))
+        for k in range(4):
+            tt = t + k * BEAT
+            if tt < t_act1:
+                put(kick(0.5 + 0.4 * grow), tt)
+                put(tone(hz(ch[0] - 12), BEAT, 0.16, harm=(1, .5, .2), a=0.004, d=0.2), tt)
+        t += bar
+        b += 1
+    for s in SHOTS[:4]:
+        put(taiko(0.9), s["start"])
+        put(stab([hz(m) for m in (50, 57, 62, 65)], 0.14), s["start"])
+    put(riser(2.0, 0.3), t_act1 - 2.0)
+    for k in range(8):  # snare fill into the first act
+        put(snare(0.25 + 0.05 * k), t_act1 - 1.0 + k * BEAT / 4)
+
+    # the main drive
     b = 0
     t = t_act1
-    while t < t_end - 0.01:
+    while t < t_end - 1e-6:
         night = t_night <= t < t_reb
         bright = t >= t_reb
-        climax = t >= t_future
+        climax = t >= t_sky
         scale = MAJOR if bright else MINOR
         ch = (chords_maj if bright else chords_min)[b % 4]
-        inten = clamp((t - t_act1) / (t_night - t_act1)) if t < t_night else (0.2 if night else
-                                                                                 0.6 + 0.4 * clamp((t - t_reb) / (t_future - t_reb)))
+        lvl = 1 + (t >= t_qin) + (t >= t_tang) + bright + climax      # 1..5 layers
         blen = min(bar, t_end - t)
-        # pad
-        put(pad([hz(m) for m in ch[1:]], blen + 0.4, (0.09 if not night else 0.12) + 0.05 * climax, a=0.3), t)
-        # bass ostinato in eighths
-        if not night:
-            for k in range(8):
-                if t + k * BEAT / 2 >= t_end:
-                    break
-                m = ch[0] - 12 + (7 if k % 4 == 2 else 0)
-                put(tone(hz(m), BEAT / 2, 0.20, harm=(1, .6, .3, .15, .08), a=0.005, d=0.18), t + k * BEAT / 2)
-        else:
-            put(tone(hz(ch[0] - 12), bar, 0.22, harm=(1, .3), a=0.4, d=3.0, sustain=0.6), t)
-        # drums
-        if not night:
-            for k in range(4):
-                tt = t + k * BEAT
-                if tt >= t_end:
-                    break
-                if k in (0, 2) or (climax and k == 3):
-                    put(taiko(0.55 + 0.35 * inten), tt, gain=1.0)
-                if inten > 0.35:
-                    for h in range(2 if inten < 0.7 else 4):
-                        put(tick(0.05 + 0.05 * inten, 1600 + 400 * (h % 2)), tt + h * BEAT / (2 if inten < 0.7 else 4),
-                            pan=0.4 * (h % 2 * 2 - 1))
-        else:
-            put(taiko(0.35, 1.5), t)
-            put(taiko(0.22, 1.5), t + 0.28)
-        # melody: guzheng in the early acts, a dizi-like lead later; erhu-like at night
-        motif = motif_a if b % 4 < 2 else motif_b
-        half = (b % 2) * 4
-        tt = t
-        acc_b = 0
-        for d, ln in motif:
-            if acc_b < half:
-                acc_b += ln
-                continue
-            if acc_b >= half + 4:
+        put(pad([hz(m) for m in ch[1:]], blen + 0.2, 0.09 + 0.02 * lvl, a=0.15), t)
+        # sixteenth-note staccato ostinato, doubled an octave up once things build
+        for k in range(16):
+            tt = t + k * s16
+            if tt >= t_end:
                 break
-            f = hz(deg(scale, d, -1 if night else 0))
+            d = ost_pat[k] + (b % 2)
+            m = deg(scale, d, -1)
+            acc = 1.25 if k % 4 == 0 else 1.0
+            put(tone(hz(m), s16 * 1.2, (0.10 + 0.012 * lvl) * acc, harm=(1, .7, .5, .35, .2), a=0.003, d=0.07),
+                tt, pan=-0.3)
+            if lvl >= 3 and not night:
+                put(tone(hz(m + 12), s16 * 1.1, 0.05 + 0.01 * lvl, harm=(1, .5, .3), a=0.003, d=0.06), tt, pan=0.3)
+        # octave bass in eighths
+        for k in range(8):
+            tt = t + k * BEAT / 2
+            if tt >= t_end:
+                break
+            m = ch[0] - 12 + (12 if k % 2 else 0)
+            put(tone(hz(m), BEAT / 2, 0.2, harm=(1, .6, .3, .15), a=0.003, d=0.15), tt)
+        # drums: four on the floor, backbeat, hats; half-time and heavy at night
+        for k in range(4):
+            tt = t + k * BEAT
+            if tt >= t_end:
+                break
             if night:
-                put(tone(f, ln * BEAT * 1.05, 0.10, harm=(1, .45, .3, .15, .1), a=0.12, d=2.0, vib=2.5, sustain=0.5),
-                    tt, pan=-0.1)
-            elif t < t_reb and t < t_act1 + 20:
-                put(pluck(f, 2.2, 0.26), tt, pan=0.15)
-            else:
-                put(pluck(f, 2.2, 0.18), tt, pan=0.15)
-                put(tone(f * 2, ln * BEAT, 0.07 + 0.03 * climax, harm=(1, .15, .05), a=0.05, d=1.5, vib=1.2, sustain=0.6),
-                    tt, pan=-0.15)
-            tt += ln * BEAT
-            acc_b += ln
-        # guzheng arpeggios in sixteenths once things build
-        if (inten > 0.5 and not night) or climax:
-            for k in range(16):
-                if t + k * BEAT / 4 >= t_end:
+                if k == 0:
+                    put(taiko(1.0, 1.4), tt)
+                if k == 2:
+                    put(snare(0.45), tt)
+                put(kick(0.6), tt)
+                continue
+            put(kick(0.85), tt)
+            if k in (1, 3) and lvl >= 2:
+                put(snare(0.42 + 0.04 * lvl), tt)
+            if k == 0:
+                put(taiko(0.5 + 0.1 * lvl), tt)
+            hats = 4 if lvl >= 3 else 2
+            for h in range(hats):
+                put(tick(0.045 + 0.01 * lvl, 6000 + 800 * (h % 2)), tt + h * BEAT / hats, pan=0.4 * (h % 2 * 2 - 1))
+        # lead melody from the Tang dynasty on; a crying erhu line at night
+        if lvl >= 3 or night:
+            motif = motif_a if b % 4 < 2 else motif_b
+            half = (b % 2) * 4
+            tt = t
+            pos = 0
+            for d, ln in motif:
+                if pos < half:
+                    pos += ln
+                    continue
+                if pos >= half + 4 or tt >= t_end:
                     break
-                d = [0, 2, 4, 5, 7, 5, 4, 2][k % 8] + (b % 4)
-                put(pluck(hz(deg(scale, d, 0)), 0.8, 0.07 + 0.04 * climax, bright=0.7), t + k * BEAT / 4,
-                    pan=0.5 * math.sin(k))
+                f = hz(deg(scale, d, 0 if not night else -1))
+                if night:
+                    put(tone(f, ln * BEAT, 0.12, harm=(1, .45, .3, .15, .1), a=0.06, d=1.5, vib=2.5, sustain=0.5), tt)
+                else:
+                    put(tone(f * 2, ln * BEAT, 0.06 + 0.012 * lvl, harm=(1, .3, .12, .05), a=0.02, d=1.0, vib=1.2,
+                             sustain=0.6), tt, pan=-0.1)
+                    put(pluck(f, 1.2, 0.14), tt, pan=0.15)
+                tt += ln * BEAT
+                pos += ln
         t += bar
         b += 1
 
-    # transitions
-    for s in SHOTS:
-        if s["flash"] >= 0.4 and s["start"] > t_act1:
+    # every cut gets a hit; chapter changes get a fill, a crash and a stab
+    prev_ch = None
+    for s in SHOTS[4:]:
+        if s["start"] >= t_end:
+            break
+        chord = [hz(m) for m in (50, 57, 62, 66 if s["start"] >= t_reb else 65)]
+        if s["ch"] != prev_ch:
+            put(crash(0.28), s["start"])
+            put(stab(chord, 0.18), s["start"])
             put(taiko(1.0), s["start"])
-            put(riser(1.2, 0.12), s["start"] - 1.2)
-    put(riser(2.4, 0.25), t_reb - 2.4)
+            for k in range(4):
+                put(snare(0.3 + 0.06 * k), s["start"] - BEAT + k * BEAT / 4)
+        else:
+            put(stab(chord, 0.08, 0.2), s["start"])
+        prev_ch = s["ch"]
     put(gong(0.5), t_night)
-    put(gong(0.6), t_5000)
-    for k in range(int((t_5000 - t_flip) / (BEAT / 2))):
-        put(tick(0.12, 2400), t_flip + k * BEAT / 2)
-    # the ending: pads and a slow guzheng arpeggio, a final gong
-    put(pad([hz(m) for m in (50, 57, 62, 66, 69)], total - t_end + 2, 0.14, a=1.0), t_end)
-    for k in range(int((total - t_end) / (BEAT / 2))):
-        d = [0, 2, 4, 5, 4, 2][k % 6]
-        put(pluck(hz(deg(MAJOR, d, 0)), 2.5, 0.12 * (1 - k / 40)), t_end + k * BEAT / 2, pan=0.4 * math.sin(k))
-    put(gong(0.7, 8.0), t_final)
-    put(taiko(1.1, 2.0), t_final)
+    put(riser(2.0, 0.3), t_reb - 2.0)
+    # the flip: an accelerating snare roll into 5,000 years
+    k = 0
+    tt = t_flip
+    while tt < t_5000:
+        put(snare(0.2 + 0.3 * (tt - t_flip) / (t_5000 - t_flip)), tt)
+        tt += BEAT / (2 if tt < t_flip + 1.0 else 4 if tt < t_5000 - 0.6 else 8)
+    put(riser(t_5000 - t_flip, 0.3), t_flip)
+    put(crash(0.4, 3.5), t_5000)
+    put(gong(0.7), t_5000)
+    put(taiko(1.2, 2.0), t_5000)
+    put(stab([hz(m) for m in (38, 50, 57, 62, 66)], 0.3, 1.2), t_5000)
 
-    # the arc: build through the dynasties, drop for the night, climb to the stars
-    keys = [(0, 0.95), (t_act1, 0.62), (t_night - 0.3, 0.9), (t_night + 0.3, 0.5), (t_reb - 0.3, 0.55),
-            (t_reb + 0.3, 0.78), (t_sky, 0.85), (t_flip, 1.0), (t_5000 + 1.0, 1.0), (t_end, 0.8), (total + 3, 0.8)]
+    # the ending: still driving through "the ink is still wet", calmer for the quote, one last hit
+    put(pad([hz(m) for m in (50, 57, 62, 66, 69)], total - t_end + 2, 0.16, a=0.4), t_end)
+    tt = t_end
+    while tt < t_quote - 1e-6:
+        for k in range(4):
+            put(kick(0.8), tt + k * BEAT)
+            if k in (1, 3):
+                put(snare(0.4), tt + k * BEAT)
+        for k in range(16):
+            put(tone(hz(deg(MAJOR, ost_pat[k], -1)), s16 * 1.2, 0.11, harm=(1, .7, .5, .35, .2), a=0.003, d=0.07),
+                tt + k * s16)
+        tt += bar
+    put(crash(0.3), t_end)
+    put(taiko(1.0), t_end)
+    for k in range(int((t_final - t_quote) / (BEAT / 2))):
+        d = [0, 2, 4, 5, 7, 5, 4, 2][k % 8]
+        put(pluck(hz(deg(MAJOR, d, 0)), 1.6, 0.16), t_quote + k * BEAT / 2, pan=0.4 * math.sin(k))
+        if k % 2 == 0:
+            put(taiko(0.35, 1.0), t_quote + k * BEAT / 2)
+    put(gong(0.8, 8.0), t_final)
+    put(taiko(1.3, 2.0), t_final)
+    put(crash(0.35, 4.0), t_final)
+    put(stab([hz(m) for m in (38, 50, 57, 62, 66)], 0.3, 2.0), t_final)
+
+    keys = [(0, 0.8), (t_act1, 0.85), (t_night - 0.3, 0.95), (t_night + 0.3, 0.8), (t_reb - 0.3, 0.85),
+            (t_reb + 0.3, 0.92), (t_sky, 1.0), (t_quote, 1.0), (t_quote + 0.5, 0.75), (total + 3, 0.75)]
     tt = np.arange(n) / SR
     gcurve = np.interp(tt, [k for k, _ in keys], [v for _, v in keys])
     L *= gcurve
     Rr *= gcurve
 
-    # reverb, fades and a soft limiter
     rng = np.random.default_rng(5)
-    ir_n = int(2.2 * SR)
-    ir = rng.standard_normal(ir_n) * np.exp(-np.arange(ir_n) / (0.45 * SR))
+    ir_n = int(1.6 * SR)
+    ir = rng.standard_normal(ir_n) * np.exp(-np.arange(ir_n) / (0.3 * SR))
     ir = np.convolve(ir, np.ones(8) / 8, "same")
     ir /= np.abs(ir).sum() / 12
     size = 1 << int(np.ceil(np.log2(n + ir_n)))
     IR = np.fft.rfft(ir, size)
     out = []
-    for ch in (L, Rr):
-        wet = np.fft.irfft(np.fft.rfft(ch, size) * IR, size)[:n]
-        out.append(ch + 0.35 * wet)
+    for chn in (L, Rr):
+        wet = np.fft.irfft(np.fft.rfft(chn, size) * IR, size)[:n]
+        out.append(chn + 0.22 * wet)
     st = np.stack(out, 1)
     fade = np.ones(n)
-    fe = int((total) * SR)
+    fe = int(total * SR)
     fs = int((total - 2.5) * SR)
     fade[fs:fe] = np.linspace(1, 0, fe - fs)
     fade[fe:] = 0
     st *= fade[:, None]
-    st /= np.percentile(np.abs(st), 99.9) + 1e-9
-    st = np.tanh(st * 0.9) * 0.9
+    st /= np.percentile(np.abs(st), 99.5) + 1e-9
+    st = np.tanh(st * 1.1) * 0.92
     return st[: int(total * SR)]
 
 
