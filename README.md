@@ -30,3 +30,36 @@ python3 make_video.py --stills   # one preview PNG per scene in output/
 ```
 
 On the first run the script downloads the fonts Ma Shan Zheng (brush script) and Noto Serif SC from Google Fonts. Both fonts use the SIL Open Font License.
+
+---
+
+# UNBROKEN · Chinese civilization in English
+
+A second, English-language video on the same subject. It follows the style of a "blueprint montage" reference video: about 50 fast shots of line-art illustrations. The dynasties are drawn on aged parchment, and the night, space and future chapters switch to a dark gold-glow palette. Headlines land one word at a time, and a HUD shows the chapter, the year, a timeline and a Kardashev meter. The story is told in the first person ("WE TAMED THE FLOOD.", "THEN WE BUILT THE WALL.", "THEN WE LEFT."). It is framed by one motif, the glowing character 文 ("writing", half of 文明, "civilization"): Cangjie invents writing, "we never put down the brush", and the ending returns to "the ink is still wet".
+
+- **Video:** `output/chinese_civilization_en.mp4`. It is 1280×720 at 30 fps and runs about 2:01. Every cut lands on the beat of a 100 BPM soundtrack.
+- **Soundtrack:** synthesized, with no voice. It uses guzheng plucks, a bass ostinato, pads, taiko and a dizi-like lead in D pentatonic. It builds through the dynasties, drops for the night chapter, and climbs to the stars.
+
+| # | Chapter | Shots |
+|---|---------|-------|
+| — | Cold open | Song compass, Cangjie invents writing, "we never put down the brush" |
+| I | 夏商 Xia · Shang | Yu tames the flood, oracle bones, the Houmuwu ding |
+| II | 周 Zhou | Sun Tzu, Confucius's Analects, the Way |
+| III | 秦 Qin | One empire and one script, the Great Wall, the Terracotta Army |
+| IV | 汉 Han | The Silk Road, paper, Zhang Heng's seismoscope |
+| V | 唐 Tang | Chang'an, Li Bai's *Quiet Night Thought*, the Diamond Sutra |
+| VI | 宋 Song | Movable type, gunpowder, the compass, *Along the River During Qingming* |
+| VII | 明 Ming | 1405, Zheng He's voyages to Africa, the giraffe, the Forbidden City, porcelain |
+| VIII | 夜 Night | The doors close, the Old Summer Palace burns, Lu Xun keeps writing |
+| IX | 复兴 Revival | The doors open, Shenzhen, 800,000,000 out of poverty, Three Gorges, high-speed rail |
+| X | 天 Sky | Shenzhou 5, FAST, the far side of the Moon, Zhurong on Mars, Tiangong |
+| XI | 火 Fire | The EAST tokamak |
+| XII | 未来 Future | Kardashev Type II and III, a flip through 5,000 years, the ending |
+
+```bash
+pip install skia-python numpy pillow imageio-ffmpeg
+python3 make_video_en.py             # full render, a few minutes on 4 cores
+python3 make_video_en.py --stills    # contact sheets of every shot in output/
+```
+
+skia needs `libegl1` on Linux (`apt-get install libegl1`). On the first run the script downloads Cinzel, EB Garamond, IBM Plex Mono, Noto Serif SC and Ma Shan Zheng from Google Fonts. All of these fonts use the SIL Open Font License.
