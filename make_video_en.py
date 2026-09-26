@@ -883,23 +883,50 @@ def art_rocket_flash(ctx, lt, p):
 
 
 def rocket_outline(ctx, x, base, s, a, col="ink"):
-    """Long March 2F, front view."""
-    def R(x0, y0, x1, y1):
-        ctx.poly([(x + x0 * s, base - y0 * s), (x + x1 * s, base - y0 * s), (x + x1 * s, base - y1 * s),
-                  (x + x0 * s, base - y1 * s)], fill="fill", fa=a, stroke=col, sa=a, w=1.3)
+    """Long March 2F (the Shenzhou launcher), front view, to scale: about 58 m tall.
+
+    Four 2.25 m boosters (about 15 m tall; three show from the front) around a 3.35 m core,
+    a 3.8 m fairing with four grid fins, and the escape tower on top."""
+    u = 7.5 * s  # pixels per metre
+
+    def P(xm, ym):
+        return (x + xm * u, base - ym * u)
+
+    def box_m(x0, y0, x1, y1, shade=0.0, hatch=None):
+        ctx.poly([P(x0, y0), P(x1, y0), P(x1, y1), P(x0, y1)], fill="fill", fa=a, stroke=col, sa=a, w=1.3,
+                 shade=shade, hatch=hatch)
+
+    def booster(cx, shade=0.0):
+        r = 1.125
+        box_m(cx - r, 0, cx + r, 12.8, shade=shade)
+        ctx.poly([P(cx - r, 12.8), P(cx + r, 12.8), P(cx + 0.35, 15.3), P(cx - 0.35, 15.3)], fill="fill", fa=a,
+                 stroke=col, sa=a, w=1.3, shade=shade)
+        ctx.poly([P(cx - 0.7, 0), P(cx + 0.7, 0), P(cx + 0.9, -0.9), P(cx - 0.9, -0.9)], fill="fill", fa=a,
+                 stroke=col, sa=a, w=1.1)
+
     for side in (-1, 1):
-        bx = side * 30
-        R(bx - 11, 0, bx + 11, 190)
-        ctx.poly([(x + (bx - 11) * s, base - 190 * s), (x + (bx + 11) * s, base - 190 * s), (x + bx * s, base - 226 * s)],
-                 fill="fill", fa=a, stroke=col, sa=a, w=1.3)
-    R(-18, 0, 18, 300)
-    R(-22, 300, 22, 350)
-    ctx.poly([(x - 22 * s, base - 350 * s), (x + 22 * s, base - 350 * s), (x + 10 * s, base - 385 * s),
-              (x - 10 * s, base - 385 * s)], fill="fill", fa=a, stroke=col, sa=a, w=1.3)
-    ctx.line([(x, base - 385 * s), (x, base - 440 * s)], col, a, 1.6)
-    for yy in (60, 120, 180, 240):
-        ctx.line([(x - 18 * s, base - yy * s), (x + 18 * s, base - yy * s)], col, a * 0.6, 0.9)
-    ctx.text("中国航天", x + 2, base - 262 * s, "cjk", 9 * s, col, a * 0.9, align="center")
+        booster(side * 2.8, shade=0.12)
+    box_m(-1.675, 0, 1.675, 28.5)                     # first stage and interstage
+    box_m(-1.675, 28.5, 1.675, 41.0)                  # second stage
+    for yy in (8.0, 19.0, 26.5, 28.5, 33.0):
+        ctx.line([P(-1.675, yy), P(1.675, yy)], col, a * 0.55, 0.9)
+    booster(0.0)                                       # the fourth booster, in front
+    box_m(-1.9, 41.0, 1.9, 47.6)                      # fairing
+    ctx.poly([P(-1.9, 47.6), P(1.9, 47.6), P(0.55, 52.2), P(-0.55, 52.2)], fill="fill", fa=a, stroke=col, sa=a, w=1.3)
+    ctx.line([P(0, 52.2), P(0, 57.2)], col, a, 2.2 * s)  # escape tower
+    ctx.poly([P(-0.45, 55.2), P(0.45, 55.2), P(0.45, 56.2), P(-0.45, 56.2)], fill="fill", fa=a, stroke=col, sa=a, w=1.0)
+    ctx.poly([P(-0.25, 57.2), P(0.25, 57.2), P(0, 58.3)], fill=col, fa=a, stroke=None)
+    for side in (-1, 1):                               # grid fins on the fairing
+        x0, x1 = (1.9, 3.0) if side > 0 else (-3.0, -1.9)
+        fin = [P(x0, 42.6), P(x1, 42.6), P(x1, 44.4), P(x0, 44.4)]
+        ctx.poly(fin, fill="fill", fa=a, stroke=col, sa=a, w=1.0)
+        for k in (1, 2):
+            ctx.line([ctx.bilinear(fin, k / 3, 0), ctx.bilinear(fin, k / 3, 1)], col, a * 0.8, 0.7)
+            ctx.line([ctx.bilinear(fin, 0, k / 3), ctx.bilinear(fin, 1, k / 3)], col, a * 0.8, 0.7)
+    ctx.poly([P(-0.35, 42.6), P(0.35, 42.6), P(0.35, 44.4), P(-0.35, 44.4)], fill="fill", fa=a, stroke=col, sa=a, w=1.0)
+    for k, ch in enumerate("中国航天"):                 # vertical lettering on the core
+        cx_, cy_ = P(0, 38.8 - k * 1.55)
+        ctx.text(ch, cx_, cy_ + 3.6 * s, "cjk", 10.5 * s, col, a * 0.9, align="center")
 
 
 def art_yu(ctx, lt, p):
