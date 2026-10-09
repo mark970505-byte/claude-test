@@ -1,0 +1,11 @@
+阿莱夫 · The Aleph — 20 s, Urban Sketch · Pen & Wash
+
+Story source: Jorge Luis Borges, "El Aleph" (1945). The images are drawn from the visions the story lists; no text of the story or of any translation is used.
+
+Picture: every line, wash and letter is drawn by code in this folder (scenes.js, film.js).
+  engine.js (pen strokes, washes, handwriting helpers) is adapted from the Lemo-Opuscar style library, MIT licence — https://github.com/lemomo-ai/lemo-opuscar
+
+Music & sound: original composition and procedural foley (mix.py), synthesised with physical-model plucked strings
+  (nylon guitar, harp, pizzicato bass: Lemo-Opuscar core/audio/pluck.py, MIT) and core/audio/sfx.py (MIT). No samples.
+
+Font (SIL Open Font License 1.1): Long Cang — The Long Cang Project Authors (fonts/OFL-LongCang.txt), subset to the characters used.
